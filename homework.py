@@ -32,7 +32,6 @@ HOMEWORK_STATUSES = {
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(stream=sys.stdout)
 formatter = logging.Formatter(
     '%(asctime)s %(levelname)s: %(funcName)s, %(lineno)s: %(message)s'
@@ -46,7 +45,7 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info('Сообщение отправлено.')
-    except Exception as error:
+    except exceptions.MessageError as error:
         logger.error('Сообщение не отправлено', error, exc_info=True)
 
 
@@ -62,7 +61,7 @@ def get_api_answer(current_timestamp):
         return api_answer.json()
     else:
         logger.error(api_answer.status_code, exc_info=True)
-        raise exceptions.InvalidResponceStatus()
+        raise exceptions.InvalidResponceStatus(api_answer)
 
 
 def check_response(response):
@@ -70,7 +69,7 @@ def check_response(response):
     if isinstance(response, dict) and isinstance(response['homeworks'], list):
         return response['homeworks']
     else:
-        logger.warning('response не соответствует ожиданиям')
+        logger.error('response не соответствует ожиданиям')
         raise TypeError()
 
 
@@ -119,17 +118,15 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            print(response)
             homework = check_response(response)
-            send_message(bot, f'{len(homework)}')
             if len(homework) > 0:
                 current_message = parse_status(homework[0])
-                send_message(bot, 'Сообщение получено')
                 if current_message != message:
                     send_message(bot, current_message)
+                else:
+                    logger.info('Статус работы не изменился')
                 message = current_message
             current_timestamp = int(time.time())
-            send_message(bot, 'Спим')
             time.sleep(RETRY_TIME)
         except exceptions.InvalidResponceStatus:
             send_message(bot, 'Эндпойнт недоступен')

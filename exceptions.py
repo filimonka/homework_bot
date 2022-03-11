@@ -18,3 +18,9 @@ class DictKeyAbsence(Exception):
     """Отсутствует необходимый ключ словаря."""
 
     pass
+
+
+class MessageError(Exception):
+    """Ошибка отправки сообщения."""
+
+    pass
