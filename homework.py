@@ -32,6 +32,7 @@ HOMEWORK_STATUSES = {
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(stream=sys.stdout)
 formatter = logging.Formatter(
     '%(asctime)s %(levelname)s: %(funcName)s, %(lineno)s: %(message)s'
