@@ -117,12 +117,12 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
-    if not check_tokens():
-        logger.critical('Один из токенов недоступен!', exc_info=True)
-        raise exceptions.CriticalError()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     message = ''
+    if not check_tokens():
+        logger.critical('Один из токенов недоступен!', exc_info=True)
+        raise exceptions.CriticalError()
     logger.info('Бот запущен')
     while True:
         try:
@@ -147,7 +147,10 @@ def main():
             send_message(bot, str(error.__doc__))
         except Exception as error:
             logger.error('Неизвестное исключение', error, exc_info=True)
-            send_message(bot, 'Наташа, мы всё уронили!')
+            send_message(
+                bot,
+                'Наташа, мы всё уронили'
+                + str(error.__doc__))
         finally:
             time.sleep(RETRY_TIME)
 
