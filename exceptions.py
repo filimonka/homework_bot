@@ -1,26 +1,29 @@
-"""Custom errors for my bot."""
+"""
+Custom errors for my bot.
+Спасибо за подсказку! Идею поняла. Мне кажется я её реализовала
+в перехватывании RequestException  и KeyError.
+"""
 
 
-class InvalidResponceStatus(Exception):
-    """Ошибка статуса http ответа."""
-
-    def __init__(
-            self,
-            response,
-            message='Статус ответа отличается от HTTPStatus.OK'
-    ):
-        self.response = response
-        self.message = message
-        super.__init__(self.message)
-
-
-class DictKeyAbsence(Exception):
-    """Отсутствует необходимый ключ словаря."""
+class IncorrectType(TypeError):
+    """Формат ответа от api не соответствует ожиданиям."""
 
     pass
 
 
-class MessageError(Exception):
-    """Ошибка отправки сообщения."""
+class ResponseKeyError(KeyError):
+    """В response отсутствует нужный ключ."""
+
+    pass
+
+
+class StatusKeyError(KeyError):
+    """Неизвестный статус работы."""
+
+    pass
+
+
+class CriticalError(Exception):
+    """Отсутствует один из токенов, работа невозможна."""
 
     pass
