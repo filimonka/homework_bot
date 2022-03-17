@@ -110,7 +110,7 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time() - (60 * 60 * 24))
+    current_timestamp = int(time.time())
     message = ''
     if not check_tokens():
         logger.critical('Один из токенов недоступен!', exc_info=True)
