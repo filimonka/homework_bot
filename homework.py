@@ -10,8 +10,6 @@ from http import HTTPStatus
 import requests
 import telegram
 from dotenv import load_dotenv
-from requests.exceptions import (ConnectionError, HTTPError, RequestException,
-                                 Timeout)
 
 import exceptions
 
@@ -25,8 +23,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-# Не придумала что в значениях, разве не статусы проверки?
-HOMEWORK_STATUSES = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -52,8 +49,8 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info('Сообщение отправлено.')
-    except telegram.error.TelegramError as error:
-        logger.error('Не удалось отправить сообщение', error, exc_info=True)
+    except telegram.error.TelegramError:
+        raise exceptions.AnyTelegramError()
 
 
 def get_api_answer(current_timestamp):
@@ -67,28 +64,22 @@ def get_api_answer(current_timestamp):
             params=params,
         )
         if api_answer.status_code != HTTPStatus.OK:
-            logger.warning(f'Url запроса: {api_answer.url}', exc_info=True)
-            raise HTTPError()
+            raise exceptions.IncorrectApiAnswer(api_answer)
+    except requests.exceptions.ConnectionError:
+        raise exceptions.OtherApiError
+    else:
         return api_answer.json()
-    except ConnectionError:
-        logger.warning('Проблема связи с сервером', exc_info=True)
-        raise ConnectionError
-    except Timeout:
-        logger.warning('Время ожидания ответа истекло', exc_info=True)
-        raise Timeout
 
 
 def check_response(response):
-    """Проверка полей ответа сервера."""
-    if not isinstance(response, dict):
+    """Проверка правильности типа данных пришедших с сервера."""
+    if not isinstance(
+        response, dict
+    ) or not isinstance(
+        response.get('homeworks'), list
+    ):
         raise exceptions.IncorrectType()
-    try:
-        response['homeworks']
-        if not isinstance(response['homeworks'], list):
-            raise exceptions.IncorrectType()
-        return response['homeworks']
-    except KeyError:
-        raise exceptions.ResponseKeyError()
+    return response['homeworks']
 
 
 def parse_status(homework):
@@ -99,10 +90,11 @@ def parse_status(homework):
     except KeyError:
         raise exceptions.ResponseKeyError()
     try:
-        verdict = HOMEWORK_STATUSES[homework_status]
-        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+        verdict = HOMEWORK_VERDICTS[homework_status]
     except KeyError:
         raise exceptions.StatusKeyError()
+    else:
+        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def check_tokens():
@@ -110,7 +102,7 @@ def check_tokens():
     tokens = (
         PRACTICUM_TOKEN,
         TELEGRAM_TOKEN,
-        TELEGRAM_CHAT_ID
+        TELEGRAM_CHAT_ID,
     )
     return all(tokens)
 
@@ -118,11 +110,11 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
+    current_timestamp = int(time.time() - (60 * 60 * 24))
     message = ''
     if not check_tokens():
         logger.critical('Один из токенов недоступен!', exc_info=True)
-        raise exceptions.CriticalError()
+        sys.exit('Проверь токены')
     logger.info('Бот запущен')
     while True:
         try:
@@ -135,22 +127,15 @@ def main():
                     message = current_message
                 else:
                     logger.debug('Статус работы не изменился')
-            current_timestamp = int(time.time() - 10)
-        except RequestException as error:
-            logger.error(msg=(str(error.__doc__)), exc_info=True)
-            send_message(bot, str(error.__doc__) + ' Подробности в WARNING')
-        except KeyError as error:
-            logger.error(str(error.__doc__), error, exc_info=True)
-            send_message(bot, str(error.__doc__))
-        except TypeError as error:
-            logger.error(str(error.__doc__), error, exc_info=True)
-            send_message(bot, str(error.__doc__))
+            current_timestamp = int(time.time())
+        except exceptions.JustLogErrors as error:
+            logger.error(str(error), bot)
+        except exceptions.ErrorLevelProblem as error:
+            logger.error(msg=(str(error)), exc_info=True)
+            send_message(bot, f'{str(error)}')
         except Exception as error:
             logger.error('Неизвестное исключение', error, exc_info=True)
-            send_message(
-                bot,
-                'Наташа, мы всё уронили'
-                + str(error.__doc__))
+            send_message(bot, f'Наташа, мы всё уронили {str(error.__doc__)}')
         finally:
             time.sleep(RETRY_TIME)
 
