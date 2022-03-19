@@ -64,20 +64,17 @@ def get_api_answer(current_timestamp):
             params=params,
         )
         if api_answer.status_code != HTTPStatus.OK:
-            raise exceptions.IncorrectApiAnswer(api_answer)
+            raise exceptions.IncorrectApiAnswer(response=api_answer)
     except requests.exceptions.ConnectionError:
         raise exceptions.OtherApiError
-    else:
-        return api_answer.json()
+    return api_answer.json()
 
 
 def check_response(response):
     """Проверка правильности типа данных пришедших с сервера."""
-    if not isinstance(
-        response, dict
-    ) or not isinstance(
-        response.get('homeworks'), list
-    ):
+    if not isinstance(response, dict):
+        raise exceptions.IncorrectType()
+    elif not isinstance(response.get('homeworks'), list):
         raise exceptions.IncorrectType()
     return response['homeworks']
 
@@ -93,18 +90,18 @@ def parse_status(homework):
         verdict = HOMEWORK_VERDICTS[homework_status]
     except KeyError:
         raise exceptions.StatusKeyError()
-    else:
-        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def check_tokens():
     """Проверка доступности всех необходимых токенов."""
-    tokens = (
-        PRACTICUM_TOKEN,
-        TELEGRAM_TOKEN,
-        TELEGRAM_CHAT_ID,
+    return all(
+        (
+            PRACTICUM_TOKEN,
+            TELEGRAM_TOKEN,
+            TELEGRAM_CHAT_ID,
+        )
     )
-    return all(tokens)
 
 
 def main():
@@ -129,13 +126,13 @@ def main():
                     logger.debug('Статус работы не изменился')
             current_timestamp = int(time.time())
         except exceptions.JustLogErrors as error:
-            logger.error(str(error), bot)
+            logger.error(str(error.__doc__), bot)
         except exceptions.ErrorLevelProblem as error:
-            logger.error(msg=(str(error)), exc_info=True)
-            send_message(bot, f'{str(error)}')
+            logger.error(msg=(str(error.__doc__)), exc_info=True)
+            send_message(bot, f'{str(error.__doc__)}')
         except Exception as error:
             logger.error('Неизвестное исключение', error, exc_info=True)
-            send_message(bot, f'Наташа, мы всё уронили {str(error.__doc__)}')
+            send_message(bot, f'Наташа, мы всё уронили: {str(error.__doc__)}')
         finally:
             time.sleep(RETRY_TIME)
 

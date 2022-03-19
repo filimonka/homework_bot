@@ -1,15 +1,13 @@
 """Custom errors for my bot."""
 
 
-from requests.exceptions import RequestException
+from requests.exceptions import RequestException, HTTPError
 
 
 class JustLogErrors(Exception):
     """Общий класс для ошибок без отправки в телеграм."""
 
-    def __init__(self):
-        self.message = str(self.__doc__)
-        super().__init__(self.message)
+    pass
 
 
 class AnyTelegramError(JustLogErrors):
@@ -21,34 +19,23 @@ class AnyTelegramError(JustLogErrors):
 class ErrorLevelProblem(Exception):
     """Будем слать в телеграм сообщения."""
 
-    def __init__(self):
-        self.message = str(self.__doc__)
-        super().__init__(self.message)
-
-
-class AnyApiError(RequestException, ErrorLevelProblem):
-    """Ошибки доступа к api practicum.yandex."""
-
     pass
 
 
-class IncorrectApiAnswer(RequestException, ErrorLevelProblem):
-    """Проблема доступа к API practicum.yandex."""
+class IncorrectApiAnswer(HTTPError, ErrorLevelProblem):
+    """Проблема http ответа practicum.yandex."""
 
-    def __init__(self, response):
+    def __init__(self, *args, **kwargs):
         """Получаем подробности запроса."""
-        self.response = response
-        self.message = f'Url запроса: {self.response.url}'
-        super().__init__(self.response, self.message)
+        self.response = kwargs.pop('response', None)
+        self.message = f'Url запроса: {self.response.url}, {self.__doc__}'
+        super(IncorrectApiAnswer, self).__init__(*args, **kwargs)
 
 
-class OtherApiError(AnyApiError, ErrorLevelProblem):
+class OtherApiError(RequestException, ErrorLevelProblem):
     """Другая ошибка доступа к API practicum.yandex."""
 
-    def __init__(self):
-        """Получаем url запроса."""
-        self.message = self.__doc__
-        super().__init__(self.message)
+    pass
 
 
 class IncorrectType(TypeError, ErrorLevelProblem):
